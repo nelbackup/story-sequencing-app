@@ -1,0 +1,7 @@
+node_modules
+data/
+uploads/
+public.zip
+source/
+npm-debug.log
+.git

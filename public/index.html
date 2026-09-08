@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>故事卡片排序遊戲</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <button class="btn-back" onclick="location.href='/admin.html'">‹ 返回</button>
+    <div class="instruction" id="storyPrompt">請按順序排列圖片，然後講述故事。</div>
+    <div class="timer-box">
+      <span>⏱</span>
+      <span id="timerText">01:00</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: Smaller slots where shuffled cards appear -->
+    <section class="source-column" id="sourceColumn"></section>
+
+    <!-- Right: Big 2x2 target slots with 1, 2, 3, 4 badges -->
+    <section class="target-grid" id="targetGrid"></section>
+  </main>
+
+  <footer>
+    <div class="counter-pill">
+      <button id="decCount">-</button>
+      <span>已練習 <span id="practiceCount">0</span> 次</span>
+      <button id="incCount">+</button>
+    </div>
+
+    <div class="footer-center">
+      <button class="btn-record" id="playAudioBtn">▶ 播放音頻</button>
+      <button class="btn-verify" id="verifyBtn">✔ 提交核對</button>
+    </div>
+
+    <div class="footer-right">
+      <button class="btn-tag">筆記</button>
+      <button class="btn-tag" style="color: #27ae60;">● 很滿意</button>
+    </div>
+  </footer>
+
+  <audio id="storyAudio"></audio>
+  <script src="game.js"></script>
+</body>
+</html>
