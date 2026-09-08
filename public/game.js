@@ -10,15 +10,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadStories() {
   try {
-    const res = await fetch('/api/stories');
-    const stories = await res.json();
-    if (stories.length > 0) {
-      initGame(stories[0]); // Loads the first available story
+    const { data: stories, error } = await supabaseClient
+      .from('stories')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (stories && stories.length > 0) {
+      const formatted = {
+        title: stories[0].title,
+        prompt: stories[0].prompt,
+        durationSeconds: stories[0].duration_seconds,
+        audioUrl: stories[0].audio_url,
+        cards: stories[0].cards
+      };
+      initGame(formatted);
     } else {
-      document.getElementById('storyPrompt').innerText = '暫無可用故事，請進入管理後台上傳。';
+      document.getElementById('storyPrompt').innerText = '暫無可用故事，請進入管理後台新增。';
     }
   } catch (err) {
-    console.error('Failed to load story sets:', err);
+    console.error('Failed to load stories from Supabase:', err);
   }
 }
 

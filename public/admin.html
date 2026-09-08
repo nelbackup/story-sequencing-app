@@ -2,60 +2,70 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <title>故事管理後台 - Upload Story Cards</title>
+  <title>故事管理後台 (Supabase)</title>
   <style>
     body { font-family: sans-serif; background: #1b162b; color: #fff; padding: 30px; }
     .container { max-width: 700px; margin: auto; background: #27213c; padding: 24px; border-radius: 12px; }
     .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
-    input, button, select { padding: 10px; border-radius: 6px; border: 1px solid #555; }
+    input, button { padding: 10px; border-radius: 6px; border: 1px solid #555; }
     button { background: #e74c3c; color: white; border: none; font-weight: bold; cursor: pointer; }
     .story-list { margin-top: 30px; }
     .story-item { background: #372e54; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
 </head>
 <body>
   <div class="container">
-    <h2>新增故事卡片組 (Upload Story Set)</h2>
-    <form id="storyForm" enctype="multipart/form-data">
+    <h2>新增故事卡片組 (Cloud Upload)</h2>
+    <form id="storyForm">
       <div class="form-group">
         <label>故事名稱 (Story Title):</label>
-        <input type="text" name="title" required placeholder="例如: 買菜記">
+        <input type="text" id="title" required placeholder="例如: 買菜記">
       </div>
       <div class="form-group">
         <label>操作指引 (Prompt):</label>
-        <input type="text" name="prompt" value="請按順序排列圖片，然後講述故事。">
+        <input type="text" id="prompt" value="請按順序排列圖片，然後講述故事。">
       </div>
       <div class="form-group">
         <label>倒計時限制秒數 (Duration in seconds):</label>
-        <input type="number" name="duration" value="60" required>
+        <input type="number" id="duration" value="60" required>
       </div>
       <div class="form-group">
-        <label>預錄故事音頻 (Audio Clip - MP3/WAV):</label>
-        <input type="file" name="audio" accept="audio/*">
+        <label>預錄故事音頻 (Audio Clip - MP3):</label>
+        <input type="file" id="audioFile" accept="audio/*">
       </div>
       <div class="form-group">
-        <label>故事圖片 (Select 4 to 6 cards in CORRECT chronological order):</label>
-        <input type="file" name="cards" accept="image/*" multiple required>
-        <small style="color: #bbb;">注意：請依序選取卡片 1, 2, 3, 4，系統將以此順序作正解核對。</small>
+        <label>故事圖片 (按 1, 2, 3, 4 正確順序選取):</label>
+        <input type="file" id="cardFiles" accept="image/*" multiple required>
       </div>
-      <button type="submit">建立故事組</button>
+      <button type="submit" id="submitBtn">上傳並發布</button>
     </form>
 
     <div class="story-list">
-      <h3>現有故事組列表</h3>
+      <h3>雲端故事列表</h3>
       <div id="storyItems"></div>
     </div>
-    <p style="margin-top: 20px;"><a href="/" style="color: #f1c40f;">返回遊戲首頁</a></p>
+    <p style="margin-top: 20px;"><a href="index.html" style="color: #f1c40f;">進入遊戲首頁</a></p>
   </div>
 
   <script>
-    async function loadList() {
-      const res = await fetch('/api/stories');
-      const data = await res.json();
+    async function uploadAsset(file, pathPrefix) {
+      const ext = file.name.split('.').pop();
+      const fileName = `${pathPrefix}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const { data, error } = await supabaseClient.storage.from('story-assets').upload(fileName, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabaseClient.storage.from('story-assets').getPublicUrl(fileName);
+      return publicUrl;
+    }
+
+    async function loadStories() {
+      const { data, error } = await supabaseClient.from('stories').select('*').order('created_at', { ascending: false });
+      if (error) return console.error(error);
       const container = document.getElementById('storyItems');
       container.innerHTML = data.map(s => `
         <div class="story-item">
-          <span>${s.title} (${s.cards.length} 張卡片 - ${s.durationSeconds}s)</span>
+          <span>${s.title} (${s.cards.length} 張卡片 - ${s.duration_seconds}s)</span>
           <button onclick="deleteStory('${s.id}')" style="background:#c0392b; padding: 6px 12px;">刪除</button>
         </div>
       `).join('');
@@ -63,24 +73,52 @@
 
     document.getElementById('storyForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(e.target);
-      const res = await fetch('/api/stories', { method: 'POST', body: formData });
-      if (res.ok) {
-        alert('上傳成功！');
+      const btn = document.getElementById('submitBtn');
+      btn.innerText = '上傳中...';
+      btn.disabled = true;
+
+      try {
+        const title = document.getElementById('title').value;
+        const prompt = document.getElementById('prompt').value;
+        const duration = parseInt(document.getElementById('duration').value, 10);
+        const audioFile = document.getElementById('audioFile').files[0];
+        const cardFiles = Array.from(document.getElementById('cardFiles').files);
+
+        let audioUrl = null;
+        if (audioFile) {
+          audioUrl = await uploadAsset(audioFile, 'audios');
+        }
+
+        const cards = [];
+        for (let i = 0; i < cardFiles.length; i++) {
+          const imgUrl = await uploadAsset(cardFiles[i], 'images');
+          cards.push({ id: `card-${Date.now()}-${i}`, correctOrder: i + 1, imageUrl: imgUrl });
+        }
+
+        const { error } = await supabaseClient.from('stories').insert([{
+          title, prompt, duration_seconds: duration, audio_url: audioUrl, cards
+        }]);
+
+        if (error) throw error;
+
+        alert('發布成功！');
         e.target.reset();
-        loadList();
-      } else {
-        alert('上傳失敗');
+        loadStories();
+      } catch (err) {
+        alert('上傳失敗: ' + err.message);
+      } finally {
+        btn.innerText = '上傳並發布';
+        btn.disabled = false;
       }
     });
 
     async function deleteStory(id) {
       if (!confirm('確定刪除此故事組？')) return;
-      await fetch('/api/stories/' + id, { method: 'DELETE' });
-      loadList();
+      await supabaseClient.from('stories').delete().eq('id', id);
+      loadStories();
     }
 
-    loadList();
+    loadStories();
   </script>
 </body>
 </html>
