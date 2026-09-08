@@ -9,6 +9,7 @@
     .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
     input, button { padding: 10px; border-radius: 6px; border: 1px solid #555; }
     button { background: #e74c3c; color: white; border: none; font-weight: bold; cursor: pointer; }
+    button:disabled { background: #7f8c8d; cursor: not-allowed; }
     .story-list { margin-top: 30px; }
     .story-item { background: #372e54; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
   </style>
@@ -21,7 +22,7 @@
     <form id="storyForm">
       <div class="form-group">
         <label>故事名稱 (Story Title):</label>
-        <input type="text" id="title" required placeholder="例如: 買菜記">
+        <input type="text" id="title" required placeholder="例如: Story Book#1">
       </div>
       <div class="form-group">
         <label>操作指引 (Prompt):</label>
@@ -32,27 +33,27 @@
         <input type="number" id="duration" value="60" required>
       </div>
       <div class="form-group">
-        <label>預錄故事音頻 (Audio Clip - MP3):</label>
+        <label>預錄故事音頻 (Audio Clip - MP3/WAV):</label>
         <input type="file" id="audioFile" accept="audio/*">
       </div>
       <div class="form-group">
         <label>故事圖片 (按 1, 2, 3, 4 正確順序選取):</label>
         <input type="file" id="cardFiles" accept="image/*" multiple required>
       </div>
-      <button type="submit" id="submitBtn">上傳並發布</button>
+      <button type="submit" id="submitBtn">建立故事組</button>
     </form>
 
     <div class="story-list">
-      <h3>雲端故事列表</h3>
+      <h3>現有故事組列表</h3>
       <div id="storyItems"></div>
     </div>
-    <p style="margin-top: 20px;"><a href="index.html" style="color: #f1c40f;">進入遊戲首頁</a></p>
+    <p style="margin-top: 20px;"><a href="index.html" style="color: #f1c40f;">返回遊戲首頁</a></p>
   </div>
 
   <script>
-    async function uploadAsset(file, pathPrefix) {
+    async function uploadAsset(file, folder) {
       const ext = file.name.split('.').pop();
-      const fileName = `${pathPrefix}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       const { data, error } = await supabaseClient.storage.from('story-assets').upload(fileName, file);
       if (error) throw error;
       const { data: { publicUrl } } = supabaseClient.storage.from('story-assets').getPublicUrl(fileName);
@@ -61,7 +62,10 @@
 
     async function loadStories() {
       const { data, error } = await supabaseClient.from('stories').select('*').order('created_at', { ascending: false });
-      if (error) return console.error(error);
+      if (error) {
+        console.error('Error loading stories:', error);
+        return;
+      }
       const container = document.getElementById('storyItems');
       container.innerHTML = data.map(s => `
         <div class="story-item">
@@ -74,7 +78,7 @@
     document.getElementById('storyForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
-      btn.innerText = '上傳中...';
+      btn.innerText = '上傳中，請稍候...';
       btn.disabled = true;
 
       try {
@@ -92,22 +96,31 @@
         const cards = [];
         for (let i = 0; i < cardFiles.length; i++) {
           const imgUrl = await uploadAsset(cardFiles[i], 'images');
-          cards.push({ id: `card-${Date.now()}-${i}`, correctOrder: i + 1, imageUrl: imgUrl });
+          cards.push({
+            id: `card-${Date.now()}-${i}`,
+            correctOrder: i + 1,
+            imageUrl: imgUrl
+          });
         }
 
         const { error } = await supabaseClient.from('stories').insert([{
-          title, prompt, duration_seconds: duration, audio_url: audioUrl, cards
+          title,
+          prompt,
+          duration_seconds: duration,
+          audio_url: audioUrl,
+          cards
         }]);
 
         if (error) throw error;
 
-        alert('發布成功！');
+        alert('建立成功！');
         e.target.reset();
         loadStories();
       } catch (err) {
-        alert('上傳失敗: ' + err.message);
+        console.error(err);
+        alert('上傳失敗: ' + (err.message || JSON.stringify(err)));
       } finally {
-        btn.innerText = '上傳並發布';
+        btn.innerText = '建立故事組';
         btn.disabled = false;
       }
     });
