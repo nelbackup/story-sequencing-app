@@ -22,7 +22,7 @@
     <form id="storyForm">
       <div class="form-group">
         <label>故事名稱 (Story Title):</label>
-        <input type="text" id="title" required placeholder="例如: Story Book#1">
+        <input type="text" id="title" required placeholder="例如: 寶貴的一課">
       </div>
       <div class="form-group">
         <label>操作指引 (Prompt):</label>
@@ -51,30 +51,33 @@
   </div>
 
   <script>
+    async function uploadAsset(file, folder) {
+      const ext = file.name.split('.').pop();
+      const cleanFileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      
+      const { data, error } = await supabaseClient.storage
+        .from('story-assets')
+        .upload(cleanFileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type || 'application/octet-stream'
+        });
 
-	async function uploadAsset(file, folder) {
-	  const ext = file.name.split('.').pop();
-	  const cleanFileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-	  
-	  const { data, error } = await supabaseClient.storage
-		.from('story-assets')
-		.upload(cleanFileName, file, {
-		  cacheControl: '3600',
-		  upsert: false,
-		  contentType: file.type || 'application/octet-stream'
-		});
+      if (error) throw error;
 
-	  if (error) throw error;
+      const { data: { publicUrl } } = supabaseClient.storage
+        .from('story-assets')
+        .getPublicUrl(cleanFileName);
 
-	  const { data: { publicUrl } } = supabaseClient.storage
-		.from('story-assets')
-		.getPublicUrl(cleanFileName);
-
-	  return publicUrl;
-	}
+      return publicUrl;
+    }
 
     async function loadStories() {
-      const { data, error } = await supabaseClient.from('stories').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabaseClient
+        .from('stories')
+        .select('*')
+        .order('created_at', { ascending: false });
+
       if (error) {
         console.error('Error loading stories:', error);
         return;
