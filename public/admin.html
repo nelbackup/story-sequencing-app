@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <title>故事管理後台 (Supabase)</title>
+  <title>故事管理後台 (Supabase Cloud)</title>
   <style>
     body { font-family: sans-serif; background: #1b162b; color: #fff; padding: 30px; }
     .container { max-width: 700px; margin: auto; background: #27213c; padding: 24px; border-radius: 12px; }
@@ -14,11 +14,10 @@
     .story-item { background: #372e54; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
 </head>
 <body>
   <div class="container">
-    <h2>新增故事卡片組 (Cloud Upload)</h2>
+    <h2>新增故事卡片組 (Supabase Direct Upload)</h2>
     <form id="storyForm">
       <div class="form-group">
         <label>故事名稱 (Story Title):</label>
@@ -51,6 +50,13 @@
   </div>
 
   <script>
+    // --- SUPABASE CONFIGURATION ---
+    const SUPABASE_URL = "https://pkbjhkqzhmnqkjiytsvy.supabase.co";
+    // Insert your actual anon key from Supabase Project Settings -> API
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; 
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     async function uploadAsset(file, folder) {
       const ext = file.name.split('.').pop();
       const cleanFileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
