@@ -51,14 +51,27 @@
   </div>
 
   <script>
-    async function uploadAsset(file, folder) {
-      const ext = file.name.split('.').pop();
-      const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-      const { data, error } = await supabaseClient.storage.from('story-assets').upload(fileName, file);
-      if (error) throw error;
-      const { data: { publicUrl } } = supabaseClient.storage.from('story-assets').getPublicUrl(fileName);
-      return publicUrl;
-    }
+
+	async function uploadAsset(file, folder) {
+	  const ext = file.name.split('.').pop();
+	  const cleanFileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+	  
+	  const { data, error } = await supabaseClient.storage
+		.from('story-assets')
+		.upload(cleanFileName, file, {
+		  cacheControl: '3600',
+		  upsert: false,
+		  contentType: file.type || 'application/octet-stream'
+		});
+
+	  if (error) throw error;
+
+	  const { data: { publicUrl } } = supabaseClient.storage
+		.from('story-assets')
+		.getPublicUrl(cleanFileName);
+
+	  return publicUrl;
+	}
 
     async function loadStories() {
       const { data, error } = await supabaseClient.from('stories').select('*').order('created_at', { ascending: false });
